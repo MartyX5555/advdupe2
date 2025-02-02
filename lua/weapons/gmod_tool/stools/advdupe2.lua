@@ -249,6 +249,10 @@ if(SERVER) then
 		Params: <trace> trace
 		Returns: <boolean> success
 	]]
+	local infmap_worldents = {
+		infmap_terrain_collider = true,
+		infmap_obj_collider = true
+	}
 	function TOOL:RightClick( trace )
 		local ply = self:GetOwner()
 		local dupe = ply.AdvDupe2
@@ -360,10 +364,22 @@ if(SERVER) then
 		end
 
 		if not HeadEnt.Z then
+
+			local mask = MASK_NPCWORLDSTATIC
+			local filter = nil
+			if InfMap then
+				mask = MASK_SOLID
+				filter = function(ent)
+					if infmap_worldents[ent:GetClass()] then return true end
+					return false
+				end
+			end
+
 			local WorldTrace = util.TraceLine({
-				mask   = MASK_NPCWORLDSTATIC,
+				mask   = mask,
 				start  = HeadEnt.Pos + Vector(0,0,1),
-				endpos = HeadEnt.Pos-Vector(0,0,50000)
+				endpos = HeadEnt.Pos-Vector(0,0,50000),
+				filter = filter
 			})
 
 			HeadEnt.Z = WorldTrace.Hit and math.abs(HeadEnt.Pos.Z - WorldTrace.HitPos.Z) or 0

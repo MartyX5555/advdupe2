@@ -75,23 +75,34 @@ function AdvDupe2.ReceiveFile(data, autoSave)
 	end
 end
 
+express.Receive( "AdvDupe2_ReceiveFile", function(inputdata)
+	local autoSave = inputdata.autosave == 1
+	AdvDupe2.ReceiveFile(inputdata.data, autoSave)
+end)
+--[[
 net.Receive("AdvDupe2_ReceiveFile", function()
 	local autoSave = net.ReadUInt(8) == 1
 	net.ReadStream(nil, function(data)
 		AdvDupe2.ReceiveFile(data, autoSave)
 	end)
 end)
+]]
 
 AdvDupe2.Uploading = false
-function AdvDupe2.SendFile(name, data)
-	net.Start("AdvDupe2_ReceiveFile")
-	net.WriteString(name)
-	AdvDupe2.Uploading = net.WriteStream(data, function()
-		AdvDupe2.Uploading = nil
-		AdvDupe2.File = nil
-		AdvDupe2.RemoveProgressBar()
-	end)
-	net.SendToServer()
+function AdvDupe2.SendFile(name, read)
+
+	express.Send( "AdvDupe2_ReceiveFile", {name = name, read = read})
+	--AdvDupe2.Uploading = nil
+	--AdvDupe2.File = nil
+
+--	net.Start("AdvDupe2_ReceiveFile")
+--	net.WriteString(name)
+--	AdvDupe2.Uploading = net.WriteStream(data, function()
+--		AdvDupe2.Uploading = nil
+--		AdvDupe2.File = nil
+--		AdvDupe2.RemoveProgressBar()
+--	end)
+--	net.SendToServer()
 end
 
 function AdvDupe2.UploadFile(ReadPath, ReadArea)
