@@ -252,7 +252,8 @@ if(SERVER) then
 	]]
 	local infmap_worldents = {
 		infmap_terrain_collider = true,
-		infmap_obj_collider = true
+		infmap_obj_collider = true,
+		infmap_planet = true,
 	}
 	function TOOL:RightClick( trace )
 		local ply = self:GetOwner()
