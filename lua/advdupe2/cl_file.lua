@@ -88,34 +88,34 @@ net.Receive("AdvDupe2_ReceiveFile", function()
 end)
 ]]
 
-AdvDupe2.Uploading = false
-function AdvDupe2.SendFile(name, read)
+AdvDupe2.Uploading = nil
+function AdvDupe2.SendFile(name, read, dupe, info, moreinfo)
 
-	express.Send( "AdvDupe2_ReceiveFile", {name = name, read = read})
-	--AdvDupe2.Uploading = nil
-	--AdvDupe2.File = nil
+	AdvDupe2.Uploading = true
+	AdvDupe2.InitProgressBar("Uploading: ")
 
---	net.Start("AdvDupe2_ReceiveFile")
---	net.WriteString(name)
---	AdvDupe2.Uploading = net.WriteStream(data, function()
---		AdvDupe2.Uploading = nil
---		AdvDupe2.File = nil
---		AdvDupe2.RemoveProgressBar()
---	end)
---	net.SendToServer()
+	-- Sends a signal to the server a file is about to be sent. It will arrive before the express do.
+	net.Start("AdvDupe2_ReceiveFile_Request")
+	net.SendToServer()
+
+	express.Send( "AdvDupe2_ReceiveFile", {name = name, read = read}, function()
+		AdvDupe2.Uploading = nil
+		AdvDupe2.RemoveProgressBar()
+		AdvDupe2.LoadGhosts(dupe, info, moreinfo, name)
+	end)	
 end
 
 function AdvDupe2.UploadFile(ReadPath, ReadArea)
 	if AdvDupe2.Uploading then AdvDupe2.Notify("Already opening file, please wait.", NOTIFY_ERROR) return end
-	if(ReadArea==0)then
-		ReadPath = AdvDupe2.DataFolder.."/"..ReadPath..".txt"
-	elseif(ReadArea==1)then
-		ReadPath = AdvDupe2.DataFolder.."/-Public-/"..ReadPath..".txt"
+	if ReadArea == 0 then
+		ReadPath = AdvDupe2.DataFolder .. "/" .. ReadPath .. ".txt"
+	elseif ReadArea == 1 then
+		ReadPath = AdvDupe2.DataFolder .. "/-Public-/" .. ReadPath .. ".txt"
 	else
-		ReadPath = "adv_duplicator/"..ReadPath..".txt"
+		ReadPath = "adv_duplicator/" .. ReadPath .. ".txt"
 	end
 
-	if(not file.Exists(ReadPath, "DATA"))then AdvDupe2.Notify("File does not exist", NOTIFY_ERROR) return end
+	if not file.Exists(ReadPath, "DATA") then AdvDupe2.Notify("File does not exist", NOTIFY_ERROR) return end
 
 	local read = file.Read(ReadPath)
 	if not read then AdvDupe2.Notify("File could not be read", NOTIFY_ERROR) return end
@@ -124,11 +124,10 @@ function AdvDupe2.UploadFile(ReadPath, ReadArea)
 	name = string.sub(name, 1, #name-4)
 
 	local success, dupe, info, moreinfo = AdvDupe2.Decode(read)
-	if(success)then
-		AdvDupe2.SendFile(name, read)
-
-		AdvDupe2.LoadGhosts(dupe, info, moreinfo, name)
+	if success then
+		AdvDupe2.RemoveGhosts()
+		AdvDupe2.SendFile(name, read, dupe, info, moreinfo)
 	else
-		AdvDupe2.Notify("File could not be decoded. ("..dupe..") Upload Canceled.", NOTIFY_ERROR)
+		AdvDupe2.Notify("File could not be decoded. (" .. dupe .. ") Upload Canceled.", NOTIFY_ERROR)
 	end
 end

@@ -37,14 +37,12 @@ concommand.Add("AdvDupe2_SaveFile", SaveFile)
 
 function AdvDupe2.SendToClient(ply, data, autosave)
 	if not IsValid(ply) then return end
-	--if #data > AdvDupe2.MaxDupeSize then
-	--	AdvDupe2.Notify(ply,"Copied duplicator filesize is too big!",NOTIFY_ERROR)
-	--	return
-	--end
 
-	--ply.AdvDupe2.Downloading = true
+	ply.AdvDupe2.Downloading = true
 	AdvDupe2.InitProgressBar(ply,"Saving:")
-	express.Send( "AdvDupe2_ReceiveFile", {autosave = autosave, data = data}, ply)
+	express.Send( "AdvDupe2_ReceiveFile", {autosave = autosave, data = data}, ply, function()
+		ply.AdvDupe2.Downloading = false
+	end)
 
 	--net.Start("AdvDupe2_ReceiveFile")
 	--net.WriteUInt(autosave, 8)
@@ -55,26 +53,24 @@ function AdvDupe2.SendToClient(ply, data, autosave)
 end
 
 function AdvDupe2.LoadDupe(ply,success,dupe,info,moreinfo)
-	if(not IsValid(ply))then return end
+	if not IsValid(ply) then return end
 
 	if not success then
-		AdvDupe2.Notify(ply,"Could not open "..dupe,NOTIFY_ERROR)
+		AdvDupe2.Notify(ply,"Could not open " .. dupe,NOTIFY_ERROR)
 		return
 	end
 
-	if(not game.SinglePlayer())then
-		if(tonumber(GetConVarString("AdvDupe2_MaxConstraints"))~=0 and #dupe["Constraints"]>tonumber(GetConVarString("AdvDupe2_MaxConstraints")))then
-			AdvDupe2.Notify(ply,"Amount of constraints is greater than "..GetConVarString("AdvDupe2_MaxConstraints"),NOTIFY_ERROR)
-			return false
-		end
+	if not game.SinglePlayer() and (tonumber(GetConVarString("AdvDupe2_MaxConstraints")) ~= 0 and #dupe["Constraints"]>tonumber(GetConVarString("AdvDupe2_MaxConstraints"))) then
+		AdvDupe2.Notify(ply, "Amount of constraints is greater than " .. GetConVarString("AdvDupe2_MaxConstraints"), NOTIFY_ERROR)
+		return false
 	end
 
 	ply.AdvDupe2.Entities = {}
 	ply.AdvDupe2.Constraints = {}
-	ply.AdvDupe2.HeadEnt={}
+	ply.AdvDupe2.HeadEnt = {}
 	ply.AdvDupe2.Revision = info.revision
 
-	if(info.ad1)then
+	if info.ad1 then
 
 		ply.AdvDupe2.HeadEnt.Index = tonumber(moreinfo.Head)
 		local spx,spy,spz = moreinfo.StartPos:match("^(.-),(.-),(.+)$")
@@ -90,13 +86,13 @@ function AdvDupe2.LoadDupe(ply,success,dupe,info,moreinfo)
 			if(v.SavedParentIdx)then
 				if(not v.BuildDupeInfo)then v.BuildDupeInfo = {} end
 				v.BuildDupeInfo.DupeParentID = v.SavedParentIdx
-				Pos = v.LocalPos*1
-				Ang = v.LocalAngle*1
+				Pos = v.LocalPos
+				Ang = v.LocalAngle
 			end
 			for i,p in pairs(v.PhysicsObjects)do
-				p.Pos = Pos or (p.LocalPos*1)
+				p.Pos = Pos or p.LocalPos
 				p.Pos.Z = p.Pos.Z - z
-				p.Angle = Ang or (p.LocalAngle*1)
+				p.Angle = Ang or p.LocalAngle
 				p.LocalPos = nil
 				p.LocalAngle = nil
 				p.Frozen = not p.Frozen -- adv dupe 2 does this wrong way
@@ -121,9 +117,21 @@ local function AdvDupe2_ReceiveFile(ply, data)
 	if not ply.AdvDupe2 then ply.AdvDupe2 = {} end
 
 	ply.AdvDupe2.Name = string.match(data.name, "([%w_ ]+)") or "Advanced Duplication"
-	AdvDupe2.LoadDupe(ply, AdvDupe2.Decode(data.read))
+
+	if istable(data) and next(data) then
+		AdvDupe2.LoadDupe(ply, AdvDupe2.Decode(data.read))
+	end
+	ply.AdvDupe2.Uploading = false
+
 end
 express.Receive( "AdvDupe2_ReceiveFile", AdvDupe2_ReceiveFile)
+
+local function AdvDupe2_ReceiveRequestforReception(_, ply)
+	if not ply.AdvDupe2.Uploading then
+		ply.AdvDupe2.Uploading = true
+	end
+end
+net.Receive("AdvDupe2_ReceiveFile_Request", AdvDupe2_ReceiveRequestforReception)
 --[[
 
 local function AdvDupe2_ReceiveFile(len, ply)

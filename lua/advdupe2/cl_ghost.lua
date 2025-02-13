@@ -1,4 +1,10 @@
+-- Got tired of seeing ghost entities being created even when the tool is holstered
+local function HastheTool()
+	return LocalPlayer():GetActiveWeapon():GetClass() == "gmod_tool"
+end
+
 function AdvDupe2.LoadGhosts(dupe, info, moreinfo, name, preview)
+	if not HastheTool() then return end
 	AdvDupe2.RemoveGhosts()
 	AdvDupe2.Ghosting = true
 	AdvDupe2.GhostToSpawn = {}
@@ -101,7 +107,7 @@ function AdvDupe2.RemoveGhosts()
 		hook.Remove("Tick", "AdvDupe2_SpawnGhosts")
 		AdvDupe2.Ghosting = false
 
-		if(not AdvDupe2.BusyBar) then
+		if not AdvDupe2.BusyBar then
 			AdvDupe2.RemoveProgressBar()
 		end
 	end

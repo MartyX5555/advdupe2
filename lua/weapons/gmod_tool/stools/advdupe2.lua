@@ -204,6 +204,7 @@ if(SERVER) then
 		["Downloading"] = "downloading.",
 		["Uploading"] = "uploading."
 	}
+	local NOTIFY_ERROR1 = 1
 	function TOOL:LeftClick( trace )
 		if(not trace) then return false end
 
@@ -214,7 +215,7 @@ if(SERVER) then
 
 		for key, msg in pairs(messages) do
 			if dupe[key] then
-				AdvDupe2.Notify(ply, "Advanced Duplicator 2 is busy " .. msg, NOTIFY_ERROR)
+				AdvDupe2.Notify(ply, "Advanced Duplicator 2 is busy " .. msg, NOTIFY_ERROR1)
 				return false
 			end
 		end
@@ -260,7 +261,7 @@ if(SERVER) then
 		if not dupe then dupe = {}; ply.AdvDupe2 = dupe end
 
 		if(dupe.Pasting or dupe.Downloading) then
-			AdvDupe2.Notify(ply,"Advanced Duplicator 2 is busy.", NOTIFY_ERROR)
+			AdvDupe2.Notify(ply,"Advanced Duplicator 2 is busy.", NOTIFY_ERROR1)
 			return false
 		end
 
@@ -860,7 +861,7 @@ if(SERVER) then
 		AdvDupe2.Encode( Tab, AdvDupe2.GenerateDupeStamp(ply), function(data)
 			if #data > AdvDupe2.MaxDupeSize then
 				AdvDupe2.Notify(ply, "Copied duplicator filesize is too big!",NOTIFY_ERROR)
-				return 
+				return
 			end
 			if(not file.IsDir("advdupe2_maps", "DATA")) then
 				file.CreateDir("advdupe2_maps")
@@ -1880,7 +1881,7 @@ if(CLIENT) then
 		if(AdvDupe2.Ghosting) then
 			AdvDupe2.InitProgressBar("Ghosting: ")
 			AdvDupe2.BusyBar = false
-			AdvDupe2.ProgressBar.Percent = AdvDupe2.CurrentGhost/AdvDupe2.TotalGhosts*100
+			AdvDupe2.ProgressBar.Percent = AdvDupe2.CurrentGhost/AdvDupe2.TotalGhosts * 100
 		end
 	end
 	net.Receive("AdvDupe2_RemoveProgressBar", function()
