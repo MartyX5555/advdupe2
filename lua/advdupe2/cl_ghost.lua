@@ -4,7 +4,17 @@ local function HastheTool()
 end
 
 function AdvDupe2.LoadGhosts(dupe, info, moreinfo, name, preview)
-	if not HastheTool() then return end
+	if not HastheTool() then 
+		AdvDupe2.WaitingGhostData = {
+			dupe = dupe,
+			info = info,
+			moreinfo = moreinfo,
+			name = name,
+			preview = preview,
+		}
+		AdvDupe2.WaitingToolReturn = true
+		return 
+	end
 	AdvDupe2.RemoveGhosts()
 	AdvDupe2.Ghosting = true
 	AdvDupe2.GhostToSpawn = {}

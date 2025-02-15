@@ -1024,6 +1024,14 @@ if(CLIENT) then
 	--Checks binds to modify dupes position and angles
 	function TOOL:Think()
 
+		if AdvDupe2.WaitingToolReturn then
+			local ghostdata = AdvDupe2.WaitingGhostData
+
+			AdvDupe2.LoadGhosts(ghostdata.dupe, ghostdata.info, ghostdata.moreinfo, ghostdata.name, ghostdata.preview)
+			AdvDupe2.WaitingGhostData = nil
+			AdvDupe2.WaitingToolReturn = nil
+		end
+
 		if AdvDupe2.HeadGhost then
 			AdvDupe2.UpdateGhosts()
 		end
