@@ -254,7 +254,14 @@ if(SERVER) then
 		infmap_terrain_collider = true,
 		infmap_obj_collider = true,
 		infmap_planet = true,
+		worldspawn = true,
 	}
+	local function HitRealWorld(ent)
+		if ent:IsWorld() then return true end
+		if InfMap and infmap_worldents[ent:GetClass()] then return true end
+		return false
+	end
+
 	function TOOL:RightClick( trace )
 		local ply = self:GetOwner()
 		local dupe = ply.AdvDupe2
@@ -279,14 +286,14 @@ if(SERVER) then
 			end
 		end
 
-		if(not trace or not trace.Hit) then return false end
+		if not trace.Hit then return false end
 
 		local Entities, Constraints, AddOne
 		local HeadEnt = {}
 		--If area copy is on
 		if(self:GetStage()==1) then
 			local area_size = math.Clamp(tonumber(ply:GetInfo("advdupe2_area_copy_size")) or 50, 0, 30720)
-			local Pos = trace.HitNonWorld and trace.Entity:GetPos() or trace.HitPos
+			local Pos = not HitRealWorld(trace.Entity) and trace.Entity:GetPos() or trace.HitPos
 			local T = (Vector(area_size,area_size,area_size)+Pos)
 			local B = (Vector(-area_size,-area_size,-area_size)+Pos)
 
@@ -298,7 +305,7 @@ if(SERVER) then
 				return true
 			end
 
-			Ent = trace.HitNonWorld and trace.Entity or Ent
+			Ent = not HitRealWorld(trace.Entity) and trace.Entity or Ent
 			HeadEnt.Index = Ent:EntIndex()
 			HeadEnt.Pos = Ent:GetPos()
 
@@ -306,7 +313,8 @@ if(SERVER) then
 
 			self:SetStage(0)
 			AdvDupe2.RemoveSelectBox(ply)
-		elseif trace.HitNonWorld then	--Area Copy is off
+		elseif not HitRealWorld(trace.Entity) then	--Area Copy is off
+
 			-- Filter duplicator blocked entities out.
 			if not AdvDupe2.duplicator.IsCopyable( trace.Entity ) then
 				return false
@@ -371,10 +379,7 @@ if(SERVER) then
 			local filter = nil
 			if InfMap then
 				mask = MASK_SOLID
-				filter = function(ent)
-					if infmap_worldents[ent:GetClass()] then return true end
-					return false
-				end
+				filter = HitRealWorld
 			end
 
 			local WorldTrace = util.TraceLine({
@@ -772,10 +777,18 @@ if(SERVER) then
 				Tab.HeadEnt.Index = dupe.AutoSaveEnt:EntIndex()
 				Tab.HeadEnt.Pos = dupe.AutoSaveEnt:GetPos()
 
+				local mask = MASK_NPCWORLDSTATIC
+				local filter = nil
+				if InfMap then
+					mask = MASK_SOLID
+					filter = HitRealWorld
+				end
+
 				local WorldTrace = util.TraceLine({
-					mask   = MASK_NPCWORLDSTATIC,
+					mask   = mask,
 					start  = Tab.HeadEnt.Pos + Vector(0,0,1),
-					endpos = Tab.HeadEnt.Pos - Vector(0,0,50000)
+					endpos = Tab.HeadEnt.Pos - Vector(0,0,50000),
+					filter = filter
 				})
 
 				Tab.HeadEnt.Z = WorldTrace.Hit and math.abs(Tab.HeadEnt.Pos.Z - WorldTrace.HitPos.Z) or 0
@@ -800,10 +813,18 @@ if(SERVER) then
 				end
 				Tab.HeadEnt.Pos = HeadEnt:GetPos()
 
+				local mask = MASK_NPCWORLDSTATIC
+				local filter = nil
+				if InfMap then
+					mask = MASK_SOLID
+					filter = HitRealWorld
+				end
+
 				local WorldTrace = util.TraceLine({
-					mask   = MASK_NPCWORLDSTATIC,
+					mask   = mask,
 					start  = Tab.HeadEnt.Pos + Vector(0,0,1),
-					endpos = Tab.HeadEnt.Pos - Vector(0,0,50000)
+					endpos = Tab.HeadEnt.Pos-Vector(0,0,50000),
+					filter = filter
 				})
 
 				Tab.HeadEnt.Z = WorldTrace.Hit and math.abs(Tab.HeadEnt.Pos.Z - WorldTrace.HitPos.Z) or 0
@@ -844,14 +865,22 @@ if(SERVER) then
 		local _, HeadEnt = next(Entities)
 		if not HeadEnt then return end
 
-		local Tab = {Entities={}, Constraints={}, HeadEnt={}, Description=""}
+		local Tab = {Entities = {}, Constraints = {}, HeadEnt = {}, Description = ""}
 		Tab.HeadEnt.Index = HeadEnt:EntIndex()
 		Tab.HeadEnt.Pos = HeadEnt:GetPos()
 
+		local mask = MASK_NPCWORLDSTATIC
+		local filter = nil
+		if InfMap then
+			mask = MASK_SOLID
+			filter = HitRealWorld
+		end
+
 		local WorldTrace = util.TraceLine({
-			mask   = MASK_NPCWORLDSTATIC,
+			mask   = mask,
 			start  = Tab.HeadEnt.Pos + Vector(0,0,1),
-			endpos = Tab.HeadEnt.Pos - Vector(0,0,50000)
+			endpos = Tab.HeadEnt.Pos-Vector(0,0,50000),
+			filter = filter
 		})
 
 		Tab.HeadEnt.Z = WorldTrace.Hit and math.abs(Tab.HeadEnt.Pos.Z - WorldTrace.HitPos.Z) or 0
@@ -1683,40 +1712,50 @@ if(CLIENT) then
 		tryToBuild()
 	end
 
-	local StColor  = {r=130, g=25, b=40, a=255}
-	local NoColor  = {r=25, g=100, b=40, a=255}
-	local CurColor = {r=25, g=100, b=40, a=255}
+	local StColor  = {r = 130, g = 25, b = 40, a = 255}
+	local UpColor  = {r = 130, g = 50, b = 40, a = 255}
+	local NoColor  = {r = 25, g = 100, b = 40, a = 255}
+	local CurColor = {r = 25, g = 100, b = 40, a = 255}
 	local CWhite   = Color(255,255,255,255)
-	surface.CreateFont ("AD2Font", {font="Arial", size=40, weight=1000}) ---Remember to use gm_clearfonts
-	surface.CreateFont ("AD2TitleFont", {font="Arial", size=24, weight=1000})
+	surface.CreateFont ("AD2Font", {font = "Arial", size = 40, weight = 1000}) ---Remember to use gm_clearfonts
+	surface.CreateFont ("AD2TitleFont", {font = "Arial", size = 24, weight = 1000})
 
-	function TOOL:DrawToolScreen()
-		if(not AdvDupe2) then return true end
+	local anim_iterator = 0
+	function TOOL:DrawToolScreen(width)
+		if not AdvDupe2 then return true end
 
 		local text = "Ready"
-		local state, co = false
+		local state, animstate, co = false
 		local ply = LocalPlayer()
 
-		if(AdvDupe2.Preview) then
+		if AdvDupe2.Preview then
 			text = "Preview"
 		end
-		if(AdvDupe2.ProgressBar.Text) then
-			state = true
+		if AdvDupe2.ProgressBar.Text then
+			if AdvDupe2.ProgressBar.AnimatedBar then
+				animstate = true
+			else
+				state = true
+			end
 			text = AdvDupe2.ProgressBar.Text
 		end
+
+		--animstate = true
 
 		cam.Start2D()
 
 			surface.SetDrawColor(32, 32, 32, 255)
 			surface.DrawRect(0, 0, 256, 256)
 
-			if(state) then
+			if state then
 				co = StColor
+			elseif animstate then
+				co = UpColor
 			else
 				co = NoColor
 			end
 
-			local rate = FrameTime() * 160
+			local rate = FrameTime() * 200
 			CurColor.r = math.Approach( CurColor.r, co.r, rate )
 			CurColor.g = math.Approach( CurColor.g, co.g, rate )
 
@@ -1725,17 +1764,38 @@ if(CLIENT) then
 
 			surface.SetTextColor( 255, 255, 255, 255 )
 
+			local barsize = 60
+			local spacing = 32
+			local whitespace = width - (spacing * 2)
+
 			draw.SimpleText("Advanced Duplicator 2", "AD2TitleFont", 128, 50, CWhite, TEXT_ALIGN_CENTER, TEXT_ALIGN_TOP)
 			draw.SimpleText(text, "AD2Font", 128, 128, CWhite, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
-			if(state) then
-				draw.RoundedBox( 6, 32, 178, 192, 28, Color( 255, 255, 255, 150 ) )
-				draw.RoundedBox( 6, 34, 180, 188*(AdvDupe2.ProgressBar.Percent / 100), 24, Color( 0, 255, 0, 255 ) )
-			elseif(ply:KeyDown(IN_USE)) then
+			if state then
+				draw.RoundedBox( 6, spacing, 178, 192, 28, Color( 255, 255, 255, 150 ) )
+				draw.RoundedBox( 6, spacing + 2, 180, 188 * (AdvDupe2.ProgressBar.Percent / 100), 24, Color( 0, 255, 0, 255 ) )
+			elseif animstate then
+
+				draw.RoundedBox( 6, spacing, 178, whitespace, 28, Color( 255, 255, 255, 150 ) )
+
+				local total = whitespace + barsize + spacing
+				if anim_iterator < total then
+
+					local remainingspace = total - anim_iterator
+					local startsize = math.min(anim_iterator, math.min(barsize + spacing, remainingspace))
+					local startX = math.max( anim_iterator - barsize, spacing)
+					draw.RoundedBox( 6, startX, 180, startsize ,24, Color( 0, 255, 0, 255 ) )
+
+					anim_iterator = anim_iterator + 4
+				else
+					anim_iterator = 0
+				end
+
+			elseif ply:KeyDown(IN_USE) then
 				local font, align = "AD2TitleFont", TEXT_ALIGN_BOTTOM
-				draw.SimpleText("H: "..ply:GetInfo("advdupe2_offset_z")    , font, 20,  210, CWhite, TEXT_ALIGN_LEFT , align)
-				draw.SimpleText("P: "..ply:GetInfo("advdupe2_offset_pitch"), font, 236, 210, CWhite, TEXT_ALIGN_RIGHT, align)
-				draw.SimpleText("Y: "..ply:GetInfo("advdupe2_offset_yaw")  , font, 20 , 240, CWhite, TEXT_ALIGN_LEFT , align)
-				draw.SimpleText("R: "..ply:GetInfo("advdupe2_offset_roll") , font, 236, 240, CWhite, TEXT_ALIGN_RIGHT, align)
+				draw.SimpleText("H: " .. ply:GetInfo("advdupe2_offset_z")    , font, 20,  210, CWhite, TEXT_ALIGN_LEFT , align)
+				draw.SimpleText("P: " .. ply:GetInfo("advdupe2_offset_pitch"), font, 236, 210, CWhite, TEXT_ALIGN_RIGHT, align)
+				draw.SimpleText("Y: " .. ply:GetInfo("advdupe2_offset_yaw")  , font, 20 , 240, CWhite, TEXT_ALIGN_LEFT , align)
+				draw.SimpleText("R: " .. ply:GetInfo("advdupe2_offset_roll") , font, 236, 240, CWhite, TEXT_ALIGN_RIGHT, align)
 			end
 
 		cam.End2D()
@@ -1746,10 +1806,8 @@ if(CLIENT) then
 		local EntTable = {}
 		for _,ent in ents.Iterator() do
 			local pos = ent:GetPos()
-			if (pos.X>=min.X) and (pos.X<=max.X) and (pos.Y>=min.Y) and (pos.Y<=max.Y) and (pos.Z>=min.Z) and (pos.Z<=max.Z) then
-				--if(ent:GetClass()~="C_BaseFlexclass") then
-					EntTable[ent:EntIndex()] = ent
-				--end
+			if (pos.X >= min.X) and (pos.X <= max.X) and (pos.Y >= min.Y) and (pos.Y <= max.Y) and (pos.Z >= min.Z) and (pos.Z <= max.Z) then
+				EntTable[ent:EntIndex()] = ent
 			end
 		end
 
@@ -1862,11 +1920,28 @@ if(CLIENT) then
 		AdvDupe2.RemoveSelectBox()
 	end)
 
+	local ActiveCall = {
+		["Uploading: "] = function(label)
+			AdvDupe2.ProgressBar.AnimatedBar = true
+		end,
+	}
+	local InactiveCall = {
+		["Uploading: "] = function(label)
+			AdvDupe2.ProgressBar.AnimatedBar = nil
+		end,
+	}
+
 	function AdvDupe2.InitProgressBar(label)
+		AdvDupe2.BusyBar = true
 		AdvDupe2.ProgressBar = {}
 		AdvDupe2.ProgressBar.Text = label
+
 		AdvDupe2.ProgressBar.Percent = 0
-		AdvDupe2.BusyBar = true
+
+		local knowfunction = ActiveCall[label]
+		if isfunction(knowfunction) then
+			knowfunction(label)
+		end
 	end
 	net.Receive("AdvDupe2_InitProgressBar", function()
 		AdvDupe2.InitProgressBar(net.ReadString())
@@ -1879,10 +1954,16 @@ if(CLIENT) then
 	function AdvDupe2.RemoveProgressBar()
 		AdvDupe2.ProgressBar = {}
 		AdvDupe2.BusyBar = false
-		if(AdvDupe2.Ghosting) then
+		AdvDupe2.ProgressBar.AnimatedBar = false
+		if AdvDupe2.Ghosting then
 			AdvDupe2.InitProgressBar("Ghosting: ")
 			AdvDupe2.BusyBar = false
-			AdvDupe2.ProgressBar.Percent = AdvDupe2.CurrentGhost/AdvDupe2.TotalGhosts * 100
+			AdvDupe2.ProgressBar.Percent = AdvDupe2.CurrentGhost / AdvDupe2.TotalGhosts * 100
+		end
+
+		local knowfunction = InactiveCall[label]
+		if isfunction(knowfunction) then
+			knowfunction(label)
 		end
 	end
 	net.Receive("AdvDupe2_RemoveProgressBar", function()
