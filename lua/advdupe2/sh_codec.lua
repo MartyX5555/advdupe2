@@ -431,6 +431,8 @@ function AdvDupe2.CheckValidDupe(dupe, info)
 	if not dupe.HeadEnt.Index then return false, "Missing HeadEnt.Index" end
 	if not dupe.Entities[dupe.HeadEnt.Index] then return false, "Missing HeadEnt index ["..dupe.HeadEnt.Index.."] from Entities table" end
 	for key, data in pairs(dupe.Entities) do
+		if not data.Class then return false, "Missing Entity Class" end
+		if not data.Model then return false, "Missing Entity Model" end
 		if not data.PhysicsObjects then return false, "Missing PhysicsObject table from Entity ["..key.."]["..data.Class.."]["..data.Model.."]" end
 		if not data.PhysicsObjects[0] then return false, "Missing PhysicsObject[0] table from Entity ["..key.."]["..data.Class.."]["..data.Model.."]" end
 		if info.ad1 then -- Advanced Duplicator 1
@@ -442,6 +444,26 @@ function AdvDupe2.CheckValidDupe(dupe, info)
 		end
 	end
 	return true, dupe
+end
+
+-- A prior before checking the dupe.
+function AdvDupe2.TrimInvalidData(dupe, info)
+	local newEntities = {}
+	for key, data in pairs(dupe.Entities) do
+		if not data.Class then flag = true continue end
+		if not data.Model then flag = true continue end
+		if not data.PhysicsObjects then flag = true continue end
+		if not data.PhysicsObjects[0] then flag = true continue end
+		if info.ad1 then -- Advanced Duplicator 1
+			if not data.PhysicsObjects[0].LocalPos then flag = true continue end
+			if not data.PhysicsObjects[0].LocalAngle then flag = true continue end
+		else -- Advanced Duplicator 2
+			if not data.PhysicsObjects[0].Pos then flag = true continue end
+			if not data.PhysicsObjects[0].Angle then flag = true continue end
+		end
+		newEntities[key] = data
+	end
+	dupe.Entities = newEntities
 end
 
 --[[
@@ -494,6 +516,7 @@ function AdvDupe2.Decode(encodedDupe)
 			end
 
 			if success then
+				AdvDupe2.TrimInvalidData(tbl, info)
 				success, tbl = AdvDupe2.CheckValidDupe(tbl, info)
 			end
 
@@ -509,6 +532,7 @@ function AdvDupe2.Decode(encodedDupe)
 		local success, tbl, info = pcall(versions[rev], encodedDupe)
 
 		if success then
+			AdvDupe2.TrimInvalidData(tbl, info)
 			success, tbl = AdvDupe2.CheckValidDupe(tbl, info)
 		end
 		if success then
