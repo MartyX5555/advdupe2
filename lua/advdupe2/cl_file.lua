@@ -9,6 +9,7 @@ function AdvDupe2.SanitizeFilename(filename)
 end
 
 function AdvDupe2.ReceiveFile(data, autoSave)
+
 	AdvDupe2.RemoveProgressBar()
 	if not data then
 		AdvDupe2.Notify("File was not saved!",NOTIFY_ERROR,5)
@@ -88,7 +89,15 @@ net.Receive("AdvDupe2_ReceiveFile", function()
 end)
 ]]
 
-AdvDupe2.Uploading = nil
+concommand.Add( "AdvDupe2_AbortUpload", function( ply, cmd, args )
+	if AdvDupe2.Uploading then
+		AdvDupe2.Uploading = nil
+		AdvDupe2.RemoveProgressBar()
+		net.Start("AdvDupe2_CancelUpload")
+		net.SendToServer()
+	end
+end )
+
 function AdvDupe2.SendFile(name, read, dupe, info, moreinfo)
 
 	AdvDupe2.Uploading = true
@@ -131,3 +140,8 @@ function AdvDupe2.UploadFile(ReadPath, ReadArea)
 		AdvDupe2.Notify("File could not be decoded. (" .. dupe .. ") Upload Canceled.", NOTIFY_ERROR)
 	end
 end
+
+hook.Add("OnLuaError", "AdvDupe2_RemoveProgressBar", function(error, realm, stack, name, addon_id )
+	print("EXPRESS BRUTALLY RAPED")
+	print(error, realm, stack, name, addon_id )
+end)

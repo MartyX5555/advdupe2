@@ -200,7 +200,7 @@ local function StopGhosting()
 	AdvDupe2.Ghosting = false
 	hook.Remove( "Tick", "AdvDupe2_SpawnGhosts" )
 
-	if not BusyBar then AdvDupe2.RemoveProgressBar() end
+	if not AdvDupe2.BusyBar then AdvDupe2.RemoveProgressBar() end
 end
 
 local function SpawnGhosts()

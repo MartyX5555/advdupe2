@@ -426,24 +426,24 @@ if(SERVER) then
 
 		if not dupe then dupe = {}; ply.AdvDupe2 = dupe end
 
-		if(not dupe.Entities) then return end
+		if not dupe.Entities then return end
 
 		net.Start("AdvDupe2_StartGhosting")
 		net.Send(ply)
 
-		if(dupe.Queued) then
+		if dupe.Queued then
 			AdvDupe2.InitProgressBar(ply, "Queued: ")
 			return
 		end
 
-		if(dupe.Pasting) then
+		if dupe.Pasting then
 			AdvDupe2.InitProgressBar(ply, "Pasting: ")
 			return
 		else
-			if(dupe.Uploading) then
+			if dupe.Uploading then
 				AdvDupe2.InitProgressBar(ply, "Uploading: ")
 				return
-			elseif(dupe.Downloading) then
+			elseif dupe.Downloading then
 				AdvDupe2.InitProgressBar(ply, "Saving: ")
 				return
 			end
@@ -1728,6 +1728,7 @@ if(CLIENT) then
 	surface.CreateFont ("AD2Font", {font = "Arial", size = 40, weight = 1000}) ---Remember to use gm_clearfonts
 	surface.CreateFont ("AD2TitleFont", {font = "Arial", size = 24, weight = 1000})
 
+	local lastime = CurTime()
 	local anim_iterator = 0
 	function TOOL:DrawToolScreen(width)
 		if not AdvDupe2 then return true end
@@ -1791,13 +1792,13 @@ if(CLIENT) then
 					local remainingspace = total - anim_iterator
 					local startsize = math.min(anim_iterator, math.min(barsize + spacing, remainingspace))
 					local startX = math.max( anim_iterator - barsize, spacing)
+
 					draw.RoundedBox( 6, startX, 180, startsize ,24, Color( 0, 255, 0, 255 ) )
 
-					anim_iterator = anim_iterator + 4
+					anim_iterator = anim_iterator + 8 * FrameTime() * 60
 				else
 					anim_iterator = 0
 				end
-
 			elseif ply:KeyDown(IN_USE) then
 				local font, align = "AD2TitleFont", TEXT_ALIGN_BOTTOM
 				draw.SimpleText("H: " .. ply:GetInfo("advdupe2_offset_z")    , font, 20,  210, CWhite, TEXT_ALIGN_LEFT , align)
@@ -1940,6 +1941,7 @@ if(CLIENT) then
 	}
 
 	function AdvDupe2.InitProgressBar(label)
+
 		AdvDupe2.BusyBar = true
 		AdvDupe2.ProgressBar = {}
 		AdvDupe2.ProgressBar.Text = label

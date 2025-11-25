@@ -38,6 +38,7 @@ util.AddNetworkString("AdvDupe2_ResetOffsets")
 util.AddNetworkString("AdvDupe2_SetDupeInfo")
 util.AddNetworkString("AdvDupe2_ReceiveFile")
 util.AddNetworkString("AdvDupe2_ReceiveFile_Request")
+util.AddNetworkString("AdvDupe2_CancelUpload")
 util.AddNetworkString("AdvDupe2_CanAutoSave")
 
 CreateConVar("AdvDupe2_DebugInfo", "0", {FCVAR_ARCHIVE}, "Should extra info be printed to console?", 0, 1)

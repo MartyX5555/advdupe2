@@ -122,7 +122,6 @@ local function AdvDupe2_ReceiveFile(ply, data)
 		AdvDupe2.LoadDupe(ply, AdvDupe2.Decode(data.read))
 	end
 	ply.AdvDupe2.Uploading = false
-
 end
 express.Receive( "AdvDupe2_ReceiveFile", AdvDupe2_ReceiveFile)
 
@@ -132,6 +131,13 @@ local function AdvDupe2_ReceiveRequestforReception(_, ply)
 	end
 end
 net.Receive("AdvDupe2_ReceiveFile_Request", AdvDupe2_ReceiveRequestforReception)
+
+net.Receive("AdvDupe2_CancelUpload", function(_, ply)
+	if ply.AdvDupe2.Uploading then
+		ply.AdvDupe2.Uploading = false
+	end
+end)
+
 --[[
 
 local function AdvDupe2_ReceiveFile(len, ply)
