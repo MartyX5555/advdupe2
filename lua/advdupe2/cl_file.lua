@@ -99,9 +99,7 @@ function AdvDupe2.ClearFileUpload()
 	AdvDupe2.RemoveProgressBar()
 end
 
-function AdvDupe2.SendFile(name, data)
-
---function AdvDupe2.SendFile(name, read, dupe, info, moreinfo)
+function AdvDupe2.SendFile(name, data, dupe, info, moreinfo)
 
 	AdvDupe2.Uploading = true
 	AdvDupe2.InitProgressBar("Uploading: ")
@@ -114,14 +112,14 @@ function AdvDupe2.SendFile(name, data)
 	--AdvDupe2.Uploading = net.WriteStream(data, AdvDupe2.ClearFileUpload)
 	net.SendToServer()
 
-	express.Send( "AdvDupe2_ReceiveFile", {name = name, read = read}, function()
+	express.Send( "AdvDupe2_ReceiveFile", {name = name, read = data}, function()
 		AdvDupe2.Uploading = nil
 		AdvDupe2.RemoveProgressBar()
 		AdvDupe2.LoadGhosts(dupe, info, moreinfo, name)
 	end)	
 end
 
-local MAX_UPLOAD_ATTEMPTS = 3
+--local MAX_UPLOAD_ATTEMPTS = 3
 function AdvDupe2.UploadFile(ReadPath, ReadArea)
 	if AdvDupe2.Uploading then AdvDupe2.Notify("Already opening file, please wait.", NOTIFY_ERROR) return end
 	if ReadArea == 0 then
