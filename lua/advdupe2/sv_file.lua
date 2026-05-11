@@ -40,16 +40,22 @@ function AdvDupe2.SendToClient(ply, data, autosave)
 
 	ply.AdvDupe2.Downloading = true
 	AdvDupe2.InitProgressBar(ply,"Saving:")
-	express.Send( "AdvDupe2_ReceiveFile", {autosave = autosave, data = data}, ply, function()
-		ply.AdvDupe2.Downloading = false
-	end)
 
-	-- Latest advdupe2 uses netstream.
-	--net.Start("AdvDupe2_ReceiveFile")
-	--net.WriteBool(autosave)
-	--net.WriteStream(data, function()
-	--	ply.AdvDupe2.Downloading = false
-	--end)
+	local datasize = #data
+	if datasize > AdvDupe2.MaxStreamSize then
+
+		express.Send( "AdvDupe2_ExpressReceiveFile", {autosave = autosave, data = data}, ply, function()
+			ply.AdvDupe2.Downloading = false
+		end)
+	else
+		-- Latest advdupe2 uses netstream.
+		net.Start("AdvDupe2_StreamReceiveFile")
+		net.WriteBool(autosave)
+		net.WriteStream(data, function()
+			ply.AdvDupe2.Downloading = false
+		end)
+		net.Send(ply)
+	end
 end
 
 function AdvDupe2.LoadDupe(ply,success,dupe,info,moreinfo)
@@ -112,7 +118,13 @@ function AdvDupe2.LoadDupe(ply,success,dupe,info,moreinfo)
 	AdvDupe2.ResetOffsets(ply, true)
 end
 
-local function AdvDupe2_ReceiveFile(ply, data)
+---- EXPRESS RECEIVING ----
+local function AdvDupe2_ReceiveRequestforReception(_, ply)
+	ply.AdvDupe2.Uploading = true
+end
+net.Receive("AdvDupe2_ReceiveFile_Request", AdvDupe2_ReceiveRequestforReception)
+
+local function AdvDupe2_ExpressReceiveFile(ply, data)
 	if not IsValid(ply) then return end
 	if not ply.AdvDupe2 then ply.AdvDupe2 = {} end
 
@@ -123,48 +135,41 @@ local function AdvDupe2_ReceiveFile(ply, data)
 	end
 	ply.AdvDupe2.Uploading = false
 end
-express.Receive( "AdvDupe2_ReceiveFile", AdvDupe2_ReceiveFile)
+express.Receive( "AdvDupe2_ExpressReceiveFile", AdvDupe2_ExpressReceiveFile)
 
-local function AdvDupe2_ReceiveRequestforReception(_, ply)
+-- NET RECEIVING (OLD)
+local function AdvDupe2_StreamReceiveFile(len, ply)
+	if not IsValid(ply) then return end
+	if not ply.AdvDupe2 then ply.AdvDupe2 = {} end
+
+	ply.AdvDupe2.Name = string.match(net.ReadString(), "([%w_ ]+)") or "Advanced Duplication"
+
 	if not ply.AdvDupe2.Uploading then
-		ply.AdvDupe2.Uploading = true
+
+		local stream = net.ReadStream(ply, function(data)
+			if data then
+				AdvDupe2.LoadDupe(ply, AdvDupe2.Decode(data))
+			else
+				AdvDupe2.Notify(ply, "Duplicator Upload Failed!", NOTIFY_ERROR, 5)
+			end
+			ply.AdvDupe2.Uploading = false
+		end)
+
+		if stream then
+			ply.AdvDupe2.Uploading = true
+			AdvDupe2.InitProgressBar(ply, "Uploading: ")
+		else
+			AdvDupe2.Notify(ply, "Stream failed to initialize!", NOTIFY_ERROR, 5)
+		end
+	else
+		AdvDupe2.Notify(ply, "Duplicator is Busy!", NOTIFY_ERROR, 5)
 	end
 end
-net.Receive("AdvDupe2_ReceiveFile_Request", AdvDupe2_ReceiveRequestforReception)
+net.Receive("AdvDupe2_StreamReceiveFile", AdvDupe2_StreamReceiveFile)
 
 net.Receive("AdvDupe2_CancelUpload", function(_, ply)
 	if ply.AdvDupe2.Uploading then
 		ply.AdvDupe2.Uploading = false
 	end
 end)
-
---[[
-
-local function AdvDupe2_ReceiveFile(len, ply)
-	if not IsValid(ply) then return end
-	if not ply.AdvDupe2 then ply.AdvDupe2 = {} end
-
-	ply.AdvDupe2.Name = string.match(net.ReadString(), "([%w_ ]+)") or "Advanced Duplication"
-
-	local stream = net.ReadStream(ply, function(data)
-		if data then
-			AdvDupe2.LoadDupe(ply, AdvDupe2.Decode(data))
-		else
-			AdvDupe2.Notify(ply, "Duplicator Upload Failed!", NOTIFY_ERROR, 5)
-		end
-		ply.AdvDupe2.Uploading = false
-	end)
-
-	if ply.AdvDupe2.Uploading then
-		if stream then
-			stream:Remove()
-		end
-		AdvDupe2.Notify(ply, "Duplicator is Busy!", NOTIFY_ERROR, 5)
-	elseif stream then
-		ply.AdvDupe2.Uploading = true
-		AdvDupe2.InitProgressBar(ply, "Uploading: ")
-	end
-end
-net.Receive("AdvDupe2_ReceiveFile", AdvDupe2_ReceiveFile)
-]]
 

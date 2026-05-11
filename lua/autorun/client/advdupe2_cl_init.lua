@@ -4,6 +4,7 @@ AdvDupe2 = {
 	InfoText = {},
 	DataFolder = "advdupe2",
 	FileRenameTryLimit = 256,
+	MaxStreamSize = 100000,
 	ProgressBar = {}
 }
 

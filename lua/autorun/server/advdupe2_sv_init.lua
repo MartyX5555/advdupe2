@@ -1,6 +1,7 @@
 AdvDupe2 = {
 	Version = "1.1.0",
-	Revision = 51
+	Revision = 51,
+	MaxStreamSize = 25000
 }
 
 AdvDupe2.DataFolder = "advdupe2" --name of the folder in data where dupes will be saved
@@ -36,7 +37,7 @@ util.AddNetworkString("AdvDupe2_UpdateProgressBar")
 util.AddNetworkString("AdvDupe2_RemoveProgressBar")
 util.AddNetworkString("AdvDupe2_ResetOffsets")
 util.AddNetworkString("AdvDupe2_SetDupeInfo")
-util.AddNetworkString("AdvDupe2_ReceiveFile")
+util.AddNetworkString("AdvDupe2_StreamReceiveFile")
 util.AddNetworkString("AdvDupe2_ReceiveFile_Request")
 util.AddNetworkString("AdvDupe2_CancelUpload")
 util.AddNetworkString("AdvDupe2_CanAutoSave")

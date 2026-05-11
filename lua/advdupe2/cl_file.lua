@@ -66,30 +66,16 @@ function AdvDupe2.ReceiveFile(data, autoSave)
 	end
 end
 
-express.Receive( "AdvDupe2_ReceiveFile", function(inputdata)
+express.Receive( "AdvDupe2_ExpressReceiveFile", function(inputdata)
 	local autoSave = inputdata.autosave == 1
 	AdvDupe2.ReceiveFile(inputdata.data, autoSave)
 end)
---[[
-net.Receive("AdvDupe2_ReceiveFile", function()
+net.Receive("AdvDupe2_StreamReceiveFile", function()
 	local autoSave = net.ReadBool()
 	net.ReadStream(nil, function(data)
 		AdvDupe2.ReceiveFile(data, autoSave)
 	end)
 end)
-]]
-
-
-concommand.Add( "AdvDupe2_AbortUpload", function( ply, cmd, args )
-	if AdvDupe2.Uploading then
-		AdvDupe2.Uploading = nil
-		AdvDupe2.RemoveProgressBar()
-		net.Start("AdvDupe2_CancelUpload")
-		net.SendToServer()
-	end
-end )
-
-
 
 AdvDupe2.Uploading = false
 AdvDupe2.UploadAttempts = 0
@@ -99,24 +85,38 @@ function AdvDupe2.ClearFileUpload()
 	AdvDupe2.RemoveProgressBar()
 end
 
+concommand.Remove("AdvDupe2_AbortUpload")
+concommand.Add( "AdvDupe2_AbortUpload", function( ply, cmd, args )
+	AdvDupe2.ClearFileUpload()
+	net.Start("AdvDupe2_CancelUpload")
+	net.SendToServer()
+end )
+
 function AdvDupe2.SendFile(name, data, dupe, info, moreinfo)
 
 	AdvDupe2.Uploading = true
 	AdvDupe2.InitProgressBar("Uploading: ")
 
-	-- Sends a signal to the server a file is about to be sent. It will arrive before the express do.
-	net.Start("AdvDupe2_ReceiveFile_Request")
-	
-	--net.Start("AdvDupe2_ReceiveFile")
-	--net.WriteString(name)
-	--AdvDupe2.Uploading = net.WriteStream(data, AdvDupe2.ClearFileUpload)
-	net.SendToServer()
+	local datasize = #data --print("Data size: " .. datasize)
+	if datasize > AdvDupe2.MaxStreamSize then
 
-	express.Send( "AdvDupe2_ReceiveFile", {name = name, read = data}, function()
-		AdvDupe2.Uploading = nil
-		AdvDupe2.RemoveProgressBar()
-		AdvDupe2.LoadGhosts(dupe, info, moreinfo, name)
-	end)	
+		-- Sends a signal to the server a file is about to be sent. It will arrive before express do.
+		net.Start("AdvDupe2_ReceiveFile_Request")
+		net.SendToServer()
+
+		express.Send( "AdvDupe2_ExpressReceiveFile", {name = name, read = data}, function()
+			AdvDupe2.ClearFileUpload() print("Express Upload finished!")
+			AdvDupe2.LoadGhosts(dupe, info, moreinfo, name)
+		end)
+	else
+		net.Start("AdvDupe2_StreamReceiveFile")
+		net.WriteString(name)
+		net.WriteStream(data, function()
+			AdvDupe2.ClearFileUpload()
+			AdvDupe2.LoadGhosts(dupe, info, moreinfo, name)
+		end)
+		net.SendToServer()
+	end
 end
 
 --local MAX_UPLOAD_ATTEMPTS = 3
@@ -165,8 +165,3 @@ function AdvDupe2.UploadFile(ReadPath, ReadArea)
 		AdvDupe2.Notify("File could not be decoded. (" .. dupe .. ") Upload Canceled.", NOTIFY_ERROR)
 	end
 end
-
-hook.Add("OnLuaError", "AdvDupe2_RemoveProgressBar", function(error, realm, stack, name, addon_id )
-	print("EXPRESS BRUTALLY RAPED")
-	print(error, realm, stack, name, addon_id )
-end)
