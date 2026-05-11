@@ -72,9 +72,9 @@ local function NarrowHistory(txt, last)
 end
 
 local function tableSortNodes(tbl)
-    for k, v in ipairs(tbl) do tbl[k] = {string.lower(v.Label:GetText()), v} end
-    table.sort(tbl, function(a,b) return a[1]<b[1] end)
-    for k, v in ipairs(tbl) do tbl[k] = v[2] end
+	for k, v in ipairs(tbl) do tbl[k] = {string.lower(v.Label:GetText()), v} end
+	table.sort(tbl, function(a,b) return a[1]<b[1] end)
+	for k, v in ipairs(tbl) do tbl[k] = v[2] end
 end
 
 local BROWSERPNL = {}
@@ -172,8 +172,14 @@ function BROWSER:DoNodeLeftClick(node)
 			if (node.Expander) then
 				node:SetExpanded() -- It's a folder, expand/collapse it
 			end
+		elseif (node.Derma.ClassName == "advdupe2_browser_file") then
+			if (node.Control.Search) then
+				AdvDupe2.UploadFile(GetNodePath(node.Ref))
+			else
+				AdvDupe2.UploadFile(GetNodePath(node))
+			end
 		else
-			AdvDupe2.UploadFile(GetNodePath(node))
+			AdvDupe2.UploadFile(GetNodePath(node.Ref))
 		end
 	else
 		self:SetSelected(node) -- A node was clicked, select it
@@ -251,6 +257,7 @@ local function CollapseParentsComplete(node)
 end
 
 function AdvDupe2.GetFilename(path, overwrite)
+	path = AdvDupe2.SanitizeFilename(path)
 	if not overwrite and file.Exists(path .. ".txt", "DATA") then
 		for i = 1, AdvDupe2.FileRenameTryLimit do
 			local p = string.format("%s_%03d.txt", path, i)
@@ -333,8 +340,6 @@ local function MoveFileClient(node)
 		return
 	end
 	local base = AdvDupe2.DataFolder
-	local ParentNode
-
 	local node2 = node.Control.ActionNode
 	local path, area = GetNodePath(node2)
 	local path2, area2 = GetNodePath(node)

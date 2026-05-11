@@ -1,18 +1,8 @@
-local invalidCharacters = { "\"", ":"}
-function AdvDupe2.SanitizeFilename(filename)
-	for i=1, #invalidCharacters do
-		filename = string.gsub(filename, invalidCharacters[i], "_")
-	end
-	filename = string.gsub(filename, "%s+", " ")
-
-	return filename
-end
-
 function AdvDupe2.ReceiveFile(data, autoSave)
 
 	AdvDupe2.RemoveProgressBar()
 	if not data then
-		AdvDupe2.Notify("File was not saved!",NOTIFY_ERROR,5)
+		AdvDupe2.Notify("File was not saved! (No data)",NOTIFY_ERROR,5)
 		return
 	end
 	local path
@@ -29,7 +19,7 @@ function AdvDupe2.ReceiveFile(data, autoSave)
 	path = AdvDupe2.SanitizeFilename(path)
 	local dupefile = file.Open(path, "wb", "DATA")
 	if not dupefile then
-		AdvDupe2.Notify("File was not saved!",NOTIFY_ERROR,5)
+		AdvDupe2.Notify("File was not saved! (Could not open file for writing)",NOTIFY_ERROR,5)
 		return
 	end
 	dupefile:Write(data)
@@ -43,7 +33,7 @@ function AdvDupe2.ReceiveFile(data, autoSave)
 		if not readFile then AdvDupe2.Notify("File could not be read", NOTIFY_ERROR) return end
 		local readData = readFile:Read(readFile:Size())
 		readFile:Close()
-		local success,dupe,info,moreinfo = AdvDupe2.Decode(readData)
+		local success, dupe, _info, _moreinfo = AdvDupe2.Decode(readData)
 		if(success)then
 			AdvDupe2.Notify("DEBUG CHECK: File successfully opens. No EOF errors.")
 		else
@@ -71,7 +61,7 @@ function AdvDupe2.ReceiveFile(data, autoSave)
 		AdvDupe2.FileBrowser.Browser.pnlCanvas.ActionNode:AddFile(filename)
 		AdvDupe2.FileBrowser.Browser.pnlCanvas:Sort(AdvDupe2.FileBrowser.Browser.pnlCanvas.ActionNode)
 	end
-	if(!errored)then
+	if not errored then
 		AdvDupe2.Notify("File successfully saved!",NOTIFY_GENERIC, 5)
 	end
 end
@@ -82,12 +72,13 @@ express.Receive( "AdvDupe2_ReceiveFile", function(inputdata)
 end)
 --[[
 net.Receive("AdvDupe2_ReceiveFile", function()
-	local autoSave = net.ReadUInt(8) == 1
+	local autoSave = net.ReadBool()
 	net.ReadStream(nil, function(data)
 		AdvDupe2.ReceiveFile(data, autoSave)
 	end)
 end)
 ]]
+
 
 concommand.Add( "AdvDupe2_AbortUpload", function( ply, cmd, args )
 	if AdvDupe2.Uploading then
@@ -98,13 +89,29 @@ concommand.Add( "AdvDupe2_AbortUpload", function( ply, cmd, args )
 	end
 end )
 
-function AdvDupe2.SendFile(name, read, dupe, info, moreinfo)
+
+
+AdvDupe2.Uploading = false
+AdvDupe2.UploadAttempts = 0
+function AdvDupe2.ClearFileUpload()
+	AdvDupe2.Uploading = false
+	AdvDupe2.UploadAttempts = 0
+	AdvDupe2.RemoveProgressBar()
+end
+
+function AdvDupe2.SendFile(name, data)
+
+--function AdvDupe2.SendFile(name, read, dupe, info, moreinfo)
 
 	AdvDupe2.Uploading = true
 	AdvDupe2.InitProgressBar("Uploading: ")
 
 	-- Sends a signal to the server a file is about to be sent. It will arrive before the express do.
 	net.Start("AdvDupe2_ReceiveFile_Request")
+	
+	--net.Start("AdvDupe2_ReceiveFile")
+	--net.WriteString(name)
+	--AdvDupe2.Uploading = net.WriteStream(data, AdvDupe2.ClearFileUpload)
 	net.SendToServer()
 
 	express.Send( "AdvDupe2_ReceiveFile", {name = name, read = read}, function()
@@ -114,6 +121,7 @@ function AdvDupe2.SendFile(name, read, dupe, info, moreinfo)
 	end)	
 end
 
+local MAX_UPLOAD_ATTEMPTS = 3
 function AdvDupe2.UploadFile(ReadPath, ReadArea)
 	if AdvDupe2.Uploading then AdvDupe2.Notify("Already opening file, please wait.", NOTIFY_ERROR) return end
 	if ReadArea == 0 then
@@ -123,6 +131,25 @@ function AdvDupe2.UploadFile(ReadPath, ReadArea)
 	else
 		ReadPath = "adv_duplicator/" .. ReadPath .. ".txt"
 	end
+
+	--if AdvDupe2.Uploading then
+	--	AdvDupe2.UploadAttempts = AdvDupe2.UploadAttempts + 1
+	--	if AdvDupe2.UploadAttempts < MAX_UPLOAD_ATTEMPTS then
+	--		local remaining = MAX_UPLOAD_ATTEMPTS - AdvDupe2.UploadAttempts
+	--		AdvDupe2.Notify("Already opening file, retry " .. remaining .. "x to force restart", NOTIFY_ERROR)
+	--		return
+	--	end
+	--	AdvDupe2.Notify("Restarting file opening...", NOTIFY_ERROR)
+	--	AdvDupe2.Uploading:Remove() -- kill upload netstream
+	--	AdvDupe2.ClearFileUpload()
+	--end
+	--if(ReadArea==0)then
+	--	ReadPath = AdvDupe2.DataFolder.."/"..ReadPath..".txt"
+	--elseif(ReadArea==1)then
+	--	ReadPath = AdvDupe2.DataFolder.."/-Public-/"..ReadPath..".txt"
+	--else
+	--	ReadPath = "adv_duplicator/" .. ReadPath .. ".txt"
+	--end
 
 	if not file.Exists(ReadPath, "DATA") then AdvDupe2.Notify("File does not exist", NOTIFY_ERROR) return end
 

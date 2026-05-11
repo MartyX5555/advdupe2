@@ -1,10 +1,10 @@
---[[	
+--[[
 	Title: Adv. Dupe 2 Contraption Spawner
-	
+
 	Desc: A mobile duplicator
-	
+
 	Author: TB
-	
+
 	Version: 1.0
 ]]
 
@@ -22,20 +22,20 @@ function ENT:Initialize()
 	self.Entity:PhysicsInit( SOLID_VPHYSICS )
 	self.Entity:SetCollisionGroup( COLLISION_GROUP_WORLD )
 	self.Entity:DrawShadow( false )
-	
+
 	local phys = self.Entity:GetPhysicsObject()
 	if phys:IsValid() then
 		phys:Wake()
 	end
-	
+
 	self.UndoList = {}
 	self.Ghosts = {}
 
 	self.SpawnLastValue = 0
 	self.UndoLastValue = 0
-	
-	self.LastSpawnTime = 0
 
+	self.LastSpawnTime = 0
+	self.DupeName = ""
 	self.CurrentPropCount = 0
 
 	if WireLib then
@@ -44,11 +44,9 @@ function ENT:Initialize()
 	end
 end
 
-
-
 /*-----------------------------------------------------------------------*
- * Sets options for this spawner
- *-----------------------------------------------------------------------*/
+* Sets options for this spawner
+*-----------------------------------------------------------------------*/
 function ENT:SetOptions(ply, delay, undo_delay, key, undo_key, disgrav, disdrag, addvel, hideprops )
 
 	self.delay = delay
@@ -57,15 +55,19 @@ function ENT:SetOptions(ply, delay, undo_delay, key, undo_key, disgrav, disdrag,
 	--Key bindings
 	self.key = key
 	self.undo_key = undo_key
-
 	numpad.Remove( self.CreateKey )
 	numpad.Remove( self.UndoKey )
-	self.CreateKey 	= numpad.OnDown( ply, self.key, "ContrSpawnerCreate", self.Entity, true )
-	self.UndoKey 	= numpad.OnDown( ply, self.undo_key, "ContrSpawnerUndo", self.Entity, true )
+	self.CreateKey = numpad.OnDown( ply, self.key     , "ContrSpawnerCreate", self.Entity, true )
+	self.UndoKey   = numpad.OnDown( ply, self.undo_key, "ContrSpawnerUndo"  , self.Entity, true )
+
+	-- Other parameters
 	self.DisableGravity = disgrav
 	self.DisableDrag = disdrag
 	self.AddVelocity = addvel
 	self.HideProps = hideprops
+
+	-- Store the player's current dupe name
+	self.DupeName  = tostring(ply.AdvDupe2.Name)
 
 	self:ShowOutput()
 end
@@ -74,15 +76,12 @@ function ENT:UpdateOptions( options )
 	self:SetOptions( options["delay"], options["undo_delay"], options["key"], options["undo_key"])
 end
 
-
 function ENT:AddGhosts()
 	if self.HideProps then return end
 	local moveable = self:GetPhysicsObject():IsMoveable()
 	self:GetPhysicsObject():EnableMotion(false)
-	local EntTable
-	local GhostEntity
+	local EntTable, GhostEntity, Phys
 	local Offset = self.DupeAngle - self.EntAngle
-	local Phys
 	for EntIndex,v in pairs(self.EntityTable)do
 		if(EntIndex!=self.HeadEnt)then
 			if(self.EntityTable[EntIndex].Class=="gmod_contr_spawner")then self.EntityTable[EntIndex] = nil continue end
@@ -94,31 +93,31 @@ function ENT:AddGhosts()
 				v.BuildDupeInfo.PhysicsObjects = table.Copy(v.PhysicsObjects)
 				Phys = EntTable.PhysicsObjects[0]
 			end
-			
+
 			GhostEntity = nil
-			
+
 			if(EntTable.Model==nil || !util.IsValidModel(EntTable.Model)) then EntTable.Model="models/error.mdl" end
-			
+
 			if ( EntTable.Model:sub( 1, 1 ) == "*" ) then
 				GhostEntity = ents.Create( "func_physbox" )
 			else
 				GhostEntity = ents.Create( "gmod_ghost" )
 			end
-			
+
 			// If there are too many entities we might not spawn..
 			if ( !GhostEntity || GhostEntity == NULL ) then return end
-			
+
 			duplicator.DoGeneric( GhostEntity, EntTable )
-			
+
 			GhostEntity:Spawn()
-			
+
 			GhostEntity:DrawShadow( false )
 			GhostEntity:SetMoveType( MOVETYPE_NONE )
 			GhostEntity:SetSolid( SOLID_VPHYSICS );
 			GhostEntity:SetNotSolid( true )
 			GhostEntity:SetRenderMode( RENDERMODE_TRANSALPHA )
 			GhostEntity:SetColor( Color(255, 255, 255, 150) )
-	
+
 			GhostEntity:SetAngles(Phys.Angle)
 			GhostEntity:SetPos(self:GetPos() + Phys.Pos - self.Offset)
 			self:SetAngles(self.EntAngle)
@@ -152,9 +151,6 @@ function ENT:SetDupeInfo( HeadEnt, EntityTable, ConstraintTable )
 	end
 end
 
-
-
- 
 function ENT:DoSpawn( ply )
 	-- Explicitly allow spawning if no player is provided, but an invalid player gets denied. This can happen when a player leaves the server.
 	if not (ply and ply:IsValid()) then return end
@@ -173,32 +169,34 @@ function ENT:DoSpawn( ply )
 	AngleOffset2:RotateAroundAxis(self:GetRight(),AngleOffset.p)
 	AngleOffset2:RotateAroundAxis(self:GetForward(),AngleOffset.r)*/
 
-	local Ents, Constrs = AdvDupe2.duplicator.Paste(ply, self.EntityTable, self.ConstraintTable, nil, nil, Vector(0,0,0), true) 
+	local Ents, Constrs = AdvDupe2.duplicator.Paste(ply, self.EntityTable, self.ConstraintTable, nil, nil, Vector(0,0,0), true)
 	local i = #self.UndoList+1
 	self.UndoList[i] = Ents
-	
-	undo.Create("contraption_spawns")
+
+	local undotxt = "AdvDupe2: Contraption ("..tostring(self.DupeName)..")"
+
+	undo.Create(undotxt)
 		local phys
 		for k,ent in pairs(Ents)do
 			phys = ent:GetPhysicsObject()
-			if IsValid(phys) then 
+			if IsValid(phys) then
 				phys:Wake()
 				if(self.DisableGravity==1)then phys:EnableGravity(false) end
 				if(self.DisableDrag==1)then phys:EnableDrag(false) end
 				phys:EnableMotion(true)
 				if(ent.SetForce)then ent.SetForce(ent, ent.force, ent.mul) end
-				if(self.AddVelocity==1)then 
-					phys:SetVelocity( self:GetVelocity() ) 
-					phys:AddAngleVelocity( self:GetPhysicsObject():GetAngleVelocity() ) 
+				if(self.AddVelocity==1)then
+					phys:SetVelocity( self:GetVelocity() )
+					phys:AddAngleVelocity( self:GetPhysicsObject():GetAngleVelocity() )
 				end
 			end
 
-			undo.AddEntity(ent)	
+			undo.AddEntity(ent)
 		end
 
 		undo.SetPlayer(ply)
 	undo.Finish()
-	
+
 	if(self.undo_delay>0)then
 		timer.Simple(self.undo_delay, function()
 			if(self.UndoList && self.UndoList[i])then
@@ -207,16 +205,13 @@ function ENT:DoSpawn( ply )
 						ent:Remove()
 					end
 				end
-			end	
+			end
 		end)
 	end
-	
 end
 
-
-
 function ENT:DoUndo( ply )
-	
+
 	if(!self.UndoList || #self.UndoList == 0)then return end
 
 	local entities = self.UndoList[	#self.UndoList ]
@@ -251,36 +246,32 @@ function ENT:TriggerInput(iname, value)
 	end
 end
 
-local text2 = {"Enabled", "Disabled"}
+local flags = {"Enabled", "Disabled"}
 function ENT:ShowOutput()
-	local text = "\nGravity: "
-	if(self.DisableGravity==1)then text=text.."Enabled" else text=text.."Disabled" end
-	text=text.."\nDrag: "
-	if(self.DisableDrag==1)then text=text.."Enabled" else text=text.."Disabled" end
-	text=text.."\nVelocity: "
-	if(self.AddVelocity==1)then text=text.."Enabled" else text=text.."Disabled" end
-	
+	local text = "\nGravity: "..((self.DisableGravity == 1) and flags[1] or flags[2])
+	text = text.."\nDrag: "   ..((self.DisableDrag == 1) and flags[1] or flags[2])
+	text = text.."\nVelocity: "..((self.AddVelocity == 1) and flags[1] or flags[2])
+
 	self.Entity:SetOverlayText(
-		"Spawn Delay: " .. tostring(self:GetCreationDelay()) ..
+		"Spawn Name: " .. tostring(self.DupeName) ..
+		"\nSpawn Delay: " .. tostring(self:GetCreationDelay()) ..
 		"\nUndo Delay: ".. tostring(self:GetDeletionDelay()) ..
 		text
 		)
-		
 end
 
-
 /*-----------------------------------------------------------------------*
- * Handler for spawn keypad input
- *-----------------------------------------------------------------------*/
+* Handler for spawn keypad input
+*-----------------------------------------------------------------------*/
 function SpawnContrSpawner( ply, ent )
 
 	if (!ent || !ent:IsValid()) then return end
 
 	local delay = ent:GetTable():GetCreationDelay()
-	
-	if(delay == 0) then 
+
+	if(delay == 0) then
 		ent:DoSpawn( ply )
-		return 
+		return
 	end
 
 	if(CurTime() < ent.LastSpawnTime)then return end
@@ -289,12 +280,12 @@ function SpawnContrSpawner( ply, ent )
 end
 
 /*-----------------------------------------------------------------------*
- * Handler for undo keypad input
- *-----------------------------------------------------------------------*/
+* Handler for undo keypad input
+*-----------------------------------------------------------------------*/
 function UndoContrSpawner( ply, ent )
 	if (!ent || !ent:IsValid()) then return end
 	ent:DoUndo( ply, true )
 end
 
-numpad.Register( "ContrSpawnerCreate",	SpawnContrSpawner )
-numpad.Register( "ContrSpawnerUndo",		UndoContrSpawner  )
+numpad.Register( "ContrSpawnerCreate", SpawnContrSpawner )
+numpad.Register( "ContrSpawnerUndo"  , UndoContrSpawner  )
