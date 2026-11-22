@@ -49,7 +49,7 @@ function AdvDupe2.SendToClient(ply, data, autosave)
 		end)
 	else
 		-- Latest advdupe2 uses netstream.
-		net.Start("AdvDupe2_ReceiveFile")
+		net.Start("AdvDupe2_StreamReceiveFile")
 		net.WriteBool(autosave)
 		net.WriteStream(data, function()
 			ply.AdvDupe2.Downloading = false
